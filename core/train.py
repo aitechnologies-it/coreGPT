@@ -76,6 +76,7 @@ def train(
 
     # --- LOAD MODEL ---
     model = GPT(config)
+    model.build((config.batch_size, config.block_size))
     model.compile(
         optimizer=optimizers.AdamW(learning_rate=6e-4, weight_decay=config.weight_decay),
         loss=losses.SparseCategoricalCrossentropy(from_logits=True),

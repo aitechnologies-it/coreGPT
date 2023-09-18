@@ -2,11 +2,7 @@ import os
 
 import keras_core as K
 from keras_core import layers
-from keras_core import losses
-from keras_core import metrics
-from keras_core import optimizers
 from keras_core import initializers
-import keras_nlp
 
 from config import GPTConfig
 
@@ -16,16 +12,16 @@ class Block(layers.Layer):
         super().__init__(**kwargs)
         self.ln1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon) # TODO: bias?
         self.ln2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
-        mha = layers.MultiHeadAttention(num_heads=config.n_head, key_dim=config.n_embd // config.n_head)
+        mha = layers.MultiHeadAttention(num_heads=config.n_head, key_dim=config.hidden_size // config.n_head)
         self.attn = lambda x, training: mha(x, x, training=training, use_causal_mask=True)
         self.mlp = K.Sequential([
             layers.Dense(
-                units=4*config.n_embd, use_bias=True, activation="gelu",
+                units=4*config.hidden_size, use_bias=True, activation="gelu",
                 kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
                 bias_initializer=initializers.Zeros(),
             ),
             layers.Dense(
-                units=config.n_embd, use_bias=True,
+                units=config.hidden_size, use_bias=True,
                 kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
                 bias_initializer=initializers.Zeros(),
             ),
@@ -44,11 +40,10 @@ class GPT(K.Model):
         self.config = config
 
         # input embedding
-        self.emb = keras_nlp.layers.TokenAndPositionEmbedding(
-            vocabulary_size=config.vocab_size,
-            sequence_length=config.block_size,
-            embedding_dim=config.n_embd,
-            embeddings_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02)
+        self.tok_emb = K.layers.Embedding(
+            input_dim=config.vocab_size, output_dim=config.hidden_size,
+            embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+            name="embedding",
         )
         self.drop = layers.Dropout(config.dropout)
         # transformer blocks
@@ -60,11 +55,20 @@ class GPT(K.Model):
             kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
         )
 
+    def build(self, input_shape):
+        self.pos_emb = self.add_weight(
+            name="positional",
+            shape=(1, self.config.block_size, self.config.hidden_size),
+            initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+            trainable=True,
+        )
+
     def call(self, inputs, training=None):
         B, T = inputs.shape
         # embed sentence
-        x = self.emb(inputs)
-        x = self.drop(x, training=training)
+        wte = self.tok_emb(inputs)
+        wpe = self.pos_emb[:, :T, :]
+        x = self.drop(wte + wpe, training=training)
         # attention
         for block in self.blocks:
             x = block(x, training=training)
