@@ -1,0 +1,7 @@
+--extra-index-url https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+"jax[cuda11_pip]"
+torch
+tensorflow
+matplotlib
+fire
+keras-core

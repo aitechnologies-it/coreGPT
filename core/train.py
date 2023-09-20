@@ -98,7 +98,7 @@ def train(
 
     print(history.history)
 
-    model.save("final_model.keras")
+    model.save("model/final_model.keras")
 
 if __name__ == "__main__":
     fire.Fire(train)
