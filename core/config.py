@@ -28,8 +28,7 @@ class GPTConfig:
     out_dir = "out"
     out_name = "final_model"
     backend = os.environ["KERAS_BACKEND"]
-    warmup_iters = 100 # 2000 # how many steps to warm up for
-    verbose = 100 # 10
+    fixed_seed = True
 
     # Data configs
     dataset_name = "shakespeare"
