@@ -53,8 +53,10 @@ def train():
     # --- CONFIG ---
     config = GPTConfig()
 
+    K.mixed_precision.set_global_policy("mixed_float16")
     if config.fixed_seed:
         K.utils.set_random_seed(1337)
+
     # --- LOAD DATA ---
     train_dataset, val_dataset, n_batch_train, n_batch_val = \
         load_data(config)
