@@ -1,8 +1,63 @@
+import math
+import numpy as np
 import keras_core as K
 from keras_core import layers
 from keras_core import initializers
+from keras_core import activations
 
 from config import GPTConfig
+
+
+class CausalSelfAttention(K.layers.Layer):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+        assert config.hidden_size % config.n_head == 0
+        # key, query, value projections for all heads, but in a batch
+        self.attn = layers.Dense(
+            units=config.hidden_size * 3, use_bias=True,
+            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
+            bias_initializer=initializers.Zeros(),
+        )
+        # regularization
+        self.attn_drop = layers.Dropout(config.dropout)
+        self.resid_drop = layers.Dropout(config.dropout)
+        # output projection
+        self.proj = K.layers.Dense(
+            units=config.hidden_size, use_bias=True,
+            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
+            bias_initializer=initializers.Zeros(),
+        )
+
+        self.mask = K.ops.tril(K.ops.ones(shape=(1, config.block_size, config.block_size)))
+
+        self.config = config
+
+    def call(self, inputs, training=None):
+        B, T, C = inputs.shape # batch_size, block_size, hidden_size
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        attended = self.attn(inputs)
+        splitted = K.ops.split(attended, 3, axis=2)
+        q, k, v = splitted[0], splitted[1], splitted[2]
+        q = K.ops.reshape(q, (B, T, self.config.n_head, C // self.config.n_head))
+        q = K.ops.transpose(q, (0, 2, 1, 3))
+        k = K.ops.reshape(k, (B, T, self.config.n_head, C // self.config.n_head))
+        k = K.ops.transpose(k, (0, 2, 1, 3))
+        v = K.ops.reshape(v, (B, T, self.config.n_head, C // self.config.n_head))
+        v = K.ops.transpose(v, (0, 2, 1, 3))
+
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2))) * (1.0 / math.sqrt(k.shape[-1])) # (B, nh, T, T)
+        att = K.ops.where(K.ops.equal(att, 0), -np.inf, att)
+        att = activations.softmax(att, axis=-1)
+        att = self.attn_drop(att, training=training)
+        y = K.ops.matmul(att, v) # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
+        y = K.ops.reshape(y, (B, T, C)) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_drop(self.proj(y), training=training)
+        return y
 
 
 class Block(layers.Layer):
@@ -10,8 +65,7 @@ class Block(layers.Layer):
         super().__init__(**kwargs)
         self.ln1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon) # TODO: bias?
         self.ln2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
-        mha = layers.MultiHeadAttention(num_heads=config.n_head, key_dim=config.hidden_size // config.n_head)
-        self.attn = lambda x, training: mha(x, x, training=training, use_causal_mask=True)
+        self.attn = CausalSelfAttention(config)
         self.mlp = K.Sequential([
             layers.Dense(
                 units=4*config.hidden_size, use_bias=True, activation="gelu",
