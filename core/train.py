@@ -18,8 +18,8 @@ def load_data(config):
     train_data = np.memmap(config.train_path, dtype=config.token_dtype, mode='r')
     val_data = np.memmap(config.val_path, dtype=config.token_dtype, mode='r')
 
-    n_batch_train = (len(train_data)-config.block_size)//config.batch_size
-    n_batch_val = (len(val_data)-config.block_size)//config.batch_size
+    n_batch_train = (len(train_data)-config.block_size) // (config.batch_size*config.shift)
+    n_batch_val = (len(val_data)-config.block_size) // (config.batch_size*config.shift)
 
     def get_windowed_tf_dataset(data: Union[np.memmap, np.array]):
         x = (
