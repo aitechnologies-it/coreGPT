@@ -88,7 +88,8 @@ def train():
         verbose=1
     )
 
-    print(history.history)
+    # print(history.history)
+    # print(model.evaluate(val_dataset, steps=n_batch_val))
 
     os.makedirs(config.out_dir, exist_ok=True)
     model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
