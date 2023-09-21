@@ -3,19 +3,20 @@ from typing import Union
 
 import fire
 import numpy as np
-import tensorflow as tf
-os.environ["KERAS_BACKEND"] = "jax"#"tensorflow"
+os.environ["KERAS_BACKEND"] = "jax"
+import keras_core as K
 from keras_core import losses
 from keras_core import metrics
 from keras_core import optimizers
+import tensorflow as tf
 
 from config import GPTConfig
 from model import GPT
 
 
-def load_data(config, train_path, val_path):
-    train_data = np.memmap(train_path, dtype=np.uint16, mode='r')
-    val_data = np.memmap(val_path, dtype=np.uint16, mode='r')
+def load_data(config):
+    train_data = np.memmap(config.train_path, dtype=config.token_dtype, mode='r')
+    val_data = np.memmap(config.val_path, dtype=config.token_dtype, mode='r')
 
     n_batch_train = (len(train_data)-config.block_size)//config.batch_size
     n_batch_val = (len(val_data)-config.block_size)//config.batch_size
@@ -23,12 +24,12 @@ def load_data(config, train_path, val_path):
     def get_windowed_tf_dataset(data: Union[np.memmap, np.array]):
         x = (
             tf.data.Dataset.from_tensor_slices(data[:-1])
-            .window(config.block_size, shift=1, stride=1, drop_remainder=True)
+            .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
             .flat_map(lambda x: x.batch(config.block_size))
         )
         y = (
             tf.data.Dataset.from_tensor_slices(data[1:])
-            .window(config.block_size, shift=1, stride=1, drop_remainder=True)
+            .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
             .flat_map(lambda x: x.batch(config.block_size))
         )
 
@@ -48,35 +49,17 @@ def load_data(config, train_path, val_path):
     return train_dataset, val_dataset, n_batch_train, n_batch_val
 
 
-def get_model(config: GPTConfig):
-    model = GPT(config)
-    model.compile(
-        optimizer=optimizers.AdamW(learning_rate=6e-4, weight_decay=config.weight_decay),
-        loss=losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[metrics.SparseCategoricalAccuracy(name='accuracy')],
-    )
-    if config.verbose > 10:
-        model.summary()
-
-    return model
-
-
-def train(
-    data_dir: str = "../data",
-):
-    train_path = os.path.join(data_dir, "shakespeare/train.bin")
-    val_path = os.path.join(data_dir, "shakespeare/val.bin")
-
+def train():
     # --- CONFIG ---
     config = GPTConfig()
 
     # --- LOAD DATA ---
     train_dataset, val_dataset, n_batch_train, n_batch_val = \
-        load_data(config, train_path, val_path)
+        load_data(config)
 
     # --- LOAD MODEL ---
     model = GPT(config)
-    model.build((config.batch_size, config.block_size))
+    model.build(input_shape=(config.batch_size, config.block_size))
     model.compile(
         optimizer=optimizers.AdamW(learning_rate=6e-4, weight_decay=config.weight_decay),
         loss=losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -85,6 +68,11 @@ def train(
     )
     if config.verbose > 10:
         model.summary()
+
+    # --- BUILD --- Only needed for torch
+    if config.backend == "torch":
+        inp = next(iter(train_dataset))[0]
+        _ = model(inp)
 
     # --- TRAIN ---
     history = model.fit(
@@ -98,7 +86,9 @@ def train(
 
     print(history.history)
 
-    model.save("model/final_model.keras")
+    os.makedirs(config.out_dir, exist_ok=True)
+    model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
+
 
 if __name__ == "__main__":
-    fire.Fire(train)
+    train()
