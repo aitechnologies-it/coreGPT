@@ -1,5 +1,3 @@
-import os
-
 import keras_core as K
 from keras_core import layers
 from keras_core import initializers
@@ -56,6 +54,7 @@ class GPT(K.Model):
         )
 
     def build(self, input_shape):
+        super().build(input_shape)
         self.pos_emb = self.add_weight(
             name="positional",
             shape=(1, self.config.block_size, self.config.hidden_size),
