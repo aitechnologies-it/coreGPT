@@ -15,9 +15,10 @@ from model import GPT
 
 
 def load_data(config):
+    B, T, shift = config.batch_size, config.block_size, config.shift
 
-    def get_tf_dataset(path, token_dtype):
-        data = np.memmap(path, dtype=token_dtype, mode='r')
+    def get_tf_dataset(path):
+        data = np.memmap(path, dtype=config.token_dtype, mode='r')
         # First block is of size (T+1), considering +1 for the target y.
         # Plus all the shifted blocks, for which we count how many batches remaining (B-1), times the shift size
         n_step = len(data) // (T+1 + (B-1)*shift)
@@ -44,11 +45,9 @@ def load_data(config):
 
         return dataset, n_step
 
-    B, T, shift = config.batch_size, config.block_size, config.shift
-
-    train_dataset, n_step_train = get_tf_dataset(config.train_path, config.token_dtype)
+    train_dataset, n_step_train = get_tf_dataset(config.train_path)
     if config.do_eval:
-        val_dataset, n_step_val = get_tf_dataset(config.val_path, config.token_dtype)
+        val_dataset, n_step_val = get_tf_dataset(config.val_path)
     else:
         val_dataset, n_step_val = None, None
 
