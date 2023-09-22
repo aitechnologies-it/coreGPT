@@ -55,9 +55,9 @@ def load_data(config):
     return train_dataset, val_dataset, n_step_train, n_step_val
 
 
-def train():
+def train(**kwargs):
     # --- CONFIG ---
-    config = GPTConfig()
+    config = GPTConfig(**kwargs)
 
     K.mixed_precision.set_global_policy("mixed_float16")
     if config.fixed_seed:
@@ -104,4 +104,4 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    fire.Fire(train)
