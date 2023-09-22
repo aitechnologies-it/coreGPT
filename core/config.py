@@ -18,6 +18,7 @@ class GPTConfig:
 
     # Train configs
     do_eval: bool = True
+    do_save_model: bool = True
 
     # Data configs
     dataset_name = "shakespeare"
