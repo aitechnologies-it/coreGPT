@@ -99,7 +99,6 @@ def train(**kwargs):
     os.makedirs(config.out_dir, exist_ok=True)
     model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
 
-    return model
 
 
 if __name__ == "__main__":
