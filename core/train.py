@@ -102,8 +102,8 @@ def train(**kwargs):
     return model, history, config
 
 
-def main(**kwargs):
-    train(**kwargs)
+def main(**kwargs):  # Fire function cannot return anything.
+    train(**kwargs)  # I do this to make train() return the model (eg. for when it's run in a notebook)
 
 if __name__ == "__main__":
     fire.Fire(main)
