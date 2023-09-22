@@ -17,18 +17,7 @@ class GPTConfig:
     layer_norm_epsilon: float = 1e-05
 
     # Train configs
-    n_epoch = 1
-    batch_size = 4
-    weight_decay = 1e-01
-    beta1 = 0.9
-    beta2 = 0.95
-    decay_lr = True # whether to decay the learning rate
-    warmup_iters = 2000 # 2000 # how many steps to warm up for
-    verbose = 1 # 10
-    out_dir = "out"
-    out_name = "final_model"
-    backend = os.environ["KERAS_BACKEND"]
-    fixed_seed = True
+    do_eval: bool = True
 
     # Data configs
     dataset_name = "shakespeare"
@@ -44,5 +33,3 @@ class GPTConfig:
             self.token_dtype = np.uint16
             self.train_path = os.path.join(self.data_dir, self.dataset_name, "train.bin")
             self.val_path = os.path.join(self.data_dir, self.dataset_name, "val.bin")
-
-config = GPTConfig()

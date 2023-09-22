@@ -15,13 +15,13 @@ from model import GPT
 
 
 def load_data(config):
-    train_data = np.memmap(config.train_path, dtype=config.token_dtype, mode='r')
-    val_data = np.memmap(config.val_path, dtype=config.token_dtype, mode='r')
 
-    n_batch_train = (len(train_data)-config.block_size) // (config.batch_size*config.shift)
-    n_batch_val = (len(val_data)-config.block_size) // (config.batch_size*config.shift)
+    def get_tf_dataset(path, token_dtype):
+        data = np.memmap(path, dtype=token_dtype, mode='r')
+        # First block is of size (T+1), considering +1 for the target y.
+        # Plus all the shifted blocks, for which we count how many batches remaining (B-1), times the shift size
+        n_step = len(data) // (T+1 + (B-1)*shift)
 
-    def get_windowed_tf_dataset(data: Union[np.memmap, np.array]):
         x = (
             tf.data.Dataset.from_tensor_slices(data[:-1])
             .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
@@ -32,8 +32,7 @@ def load_data(config):
             .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
             .flat_map(lambda x: x.batch(config.block_size))
         )
-
-        return (
+        dataset = (
             tf.data.Dataset
             .zip((x, y))
             .batch(batch_size=config.batch_size,
@@ -43,10 +42,17 @@ def load_data(config):
             .prefetch(buffer_size=tf.data.AUTOTUNE)
         )
 
-    train_dataset = get_windowed_tf_dataset(train_data)
-    val_dataset = get_windowed_tf_dataset(val_data)
+        return dataset, n_step
 
-    return train_dataset, val_dataset, n_batch_train, n_batch_val
+    B, T, shift = config.batch_size, config.block_size, config.shift
+
+    train_dataset, n_step_train = get_tf_dataset(config.train_path, config.token_dtype)
+    if config.do_eval:
+        val_dataset, n_step_val = get_tf_dataset(config.val_path, config.token_dtype)
+    else:
+        val_dataset, n_step_val = None, None
+
+    return train_dataset, val_dataset, n_step_train, n_step_val
 
 
 def train():
@@ -58,10 +64,8 @@ def train():
         K.utils.set_random_seed(1337)
         tf.config.experimental.enable_op_determinism()
 
-
     # --- LOAD DATA ---
-    train_dataset, val_dataset, n_batch_train, n_batch_val = \
-        load_data(config)
+    train_dataset, val_dataset, n_step_train, n_step_val = load_data(config)
 
     # --- LOAD MODEL ---
     model = GPT(config)
@@ -83,10 +87,10 @@ def train():
     # --- TRAIN ---
     history = model.fit(
         train_dataset,
-        steps_per_epoch=n_batch_train,
+        steps_per_epoch=n_step_train,
         epochs=config.n_epoch,
         validation_data=val_dataset,
-        validation_steps=n_batch_val,
+        validation_steps=n_step_val,
         verbose=1
     )
 
@@ -95,6 +99,8 @@ def train():
 
     os.makedirs(config.out_dir, exist_ok=True)
     model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
+
+    return model
 
 
 if __name__ == "__main__":
