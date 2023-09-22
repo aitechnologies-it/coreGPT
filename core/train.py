@@ -1,5 +1,4 @@
 import os
-from typing import Union
 
 import fire
 import numpy as np
@@ -100,7 +99,11 @@ def train(**kwargs):
         os.makedirs(config.out_dir, exist_ok=True)
         model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
 
+    return model, history, config
 
+
+def main(**kwargs):
+    train(**kwargs)
 
 if __name__ == "__main__":
-    fire.Fire(train)
+    fire.Fire(main)
