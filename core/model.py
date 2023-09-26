@@ -1,11 +1,79 @@
 import math
 import numpy as np
 import keras_core as K
+from keras_core import ops
 from keras_core import layers
 from keras_core import initializers
 from keras_core import activations
+from keras_core import regularizers
+from keras_core import constraints
 
 from config import GPTConfig
+
+
+class EmbeddingDecoder(layers.Layer):
+    """Reimplementation of K.layers.Dense layer, but with tied_weights from the 
+    work token embedding layer."""
+    def __init__(
+        self,
+        tied_to,
+        units=None,
+        activation=None,
+        use_bias=True,
+        bias_initializer="zeros",
+        bias_regularizer=None,
+        bias_constraint=None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.tied_to = tied_to
+        self.units = units
+        self.activation = activations.get(activation)
+        self.use_bias = use_bias
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.bias_constraint = constraints.get(bias_constraint)
+
+        self.input_spec = K.InputSpec(min_ndim=2)
+        self.supports_masking = True
+
+    def build(self, input_shape):
+        B, T, H = input_shape
+        V = self.units
+        if self.use_bias:
+            self.bias = self.add_weight(
+                name="bias",
+                shape=(1, T, V),
+                initializer=self.bias_initializer,
+                regularizer=self.bias_regularizer,
+            )
+
+        self.input_spec = K.InputSpec(min_ndim=2, axes={-1: H})
+        self.built = True
+
+    def call(self, inputs):
+        w = self.tied_to.embeddings
+        kernel = K.ops.transpose(w)
+        x = ops.matmul(inputs, kernel)
+        if self.use_bias:
+            x = x + self.bias
+        if self.activation:
+            x = self.activation(x)
+        return x
+
+    def compute_output_shape(self, input_shape):
+        output_shape = list(input_shape)
+        output_shape[-1] = self.units
+        return tuple(output_shape)
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "units": self.units,
+            "activation": activations.serialize(self.activation),
+            "use_bias": self.use_bias,
+        }
+        return {**base_config, **config}
 
 
 class CausalSelfAttention(K.layers.Layer):
@@ -102,10 +170,7 @@ class GPT(K.Model):
         self.blocks = [Block(config) for _ in range(config.n_layer)]
         # decoder head
         self.ln_f = layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias
-        self.head = layers.Dense(
-            units=config.vocab_size, use_bias=False,
-            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
-        )
+        self.head = EmbeddingDecoder(tied_to=self.tok_emb, units=config.vocab_size, use_bias=config.bias)
 
     def build(self, input_shape):
         super().build(input_shape)
