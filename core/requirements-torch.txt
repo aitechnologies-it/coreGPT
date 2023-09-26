@@ -1,0 +1,7 @@
+torch
+tensorflow
+matplotlib
+fire
+keras-core
+tiktoken
+wandb
