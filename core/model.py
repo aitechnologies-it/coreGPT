@@ -165,6 +165,11 @@ class GPT(K.Model):
             embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
             name="embedding",
         )
+        self.pos_emb = K.layers.Embedding(
+            input_dim=config.block_size, output_dim=config.hidden_size,
+            embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+            name="positional",
+        )
         self.drop = layers.Dropout(config.dropout)
         # transformer blocks
         self.blocks = [Block(config) for _ in range(config.n_layer)]
@@ -174,18 +179,13 @@ class GPT(K.Model):
 
     def build(self, input_shape):
         super().build(input_shape)
-        self.pos_emb = self.add_weight(
-            name="positional",
-            shape=(1, self.config.block_size, self.config.hidden_size),
-            initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
-            trainable=True,
-        )
 
     def call(self, inputs, training=None):
         B, T = inputs.shape
         # embed sentence
         wte = self.tok_emb(inputs)
-        wpe = self.pos_emb[:, :T, :]
+        # wpe = self.pos_emb[:, :T, :]
+        wpe = self.pos_emb(K.ops.arange(0, T))
         x = self.drop(wte + wpe, training=training)
         # attention
         for block in self.blocks:
