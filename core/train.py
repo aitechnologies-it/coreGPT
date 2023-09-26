@@ -117,9 +117,11 @@ def train(**kwargs):
     if config.verbose > 10:
         model.summary()
 
-    my_callbacks = [
-        callbacks.LambdaCallback(on_batch_end=lambda batch, logs: wandb_log(wandb, optimizer, batch, logs))
-    ]
+    my_callbacks = []
+    if config.do_wandb_log:
+        my_callbacks.append(
+            callbacks.LambdaCallback(on_batch_end=lambda batch, logs: wandb_log(wandb, optimizer, batch, logs))
+        )
 
     # --- BUILD --- Only needed for torch
     if config.backend == "torch":
