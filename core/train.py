@@ -66,7 +66,7 @@ def train(**kwargs):
     # --- CONFIG ---
     config = GPTConfig(**kwargs)
 
-    K.mixed_precision.set_global_policy("mixed_float16")
+    K.mixed_precision.set_global_policy("mixed_bfloat16")
     if config.fixed_seed:
         K.utils.set_random_seed(1337)
         tf.config.experimental.enable_op_determinism()
