@@ -14,17 +14,17 @@ class CausalSelfAttention(K.layers.Layer):
         assert config.hidden_size % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
         self.attn = layers.Dense(
-            units=config.hidden_size * 3, use_bias=True,
+            units=config.hidden_size * 3, use_bias=config.bias,
             kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
             bias_initializer=initializers.Zeros(),
         )
         # regularization
         self.attn_drop = layers.Dropout(config.dropout)
         self.resid_drop = layers.Dropout(config.dropout)
-        # output projection
+        # output projection (special scaled init to the residual projections, per GPT-2 paper)
         self.proj = K.layers.Dense(
-            units=config.hidden_size, use_bias=True,
-            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
+            units=config.hidden_size, use_bias=config.bias,
+            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02 / math.sqrt(2 * config.n_layer)),
             bias_initializer=initializers.Zeros(),
         )
 
@@ -63,17 +63,17 @@ class CausalSelfAttention(K.layers.Layer):
 class Block(layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
-        self.ln1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon) # TODO: bias?
+        self.ln1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
         self.ln2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
         self.attn = CausalSelfAttention(config)
         self.mlp = K.Sequential([
             layers.Dense(
-                units=4*config.hidden_size, use_bias=True, activation="gelu",
+                units=4*config.hidden_size, use_bias=config.bias, activation="gelu",
                 kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
                 bias_initializer=initializers.Zeros(),
             ),
             layers.Dense(
-                units=config.hidden_size, use_bias=True,
+                units=config.hidden_size, use_bias=config.bias,
                 kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
                 bias_initializer=initializers.Zeros(),
             ),
@@ -101,7 +101,7 @@ class GPT(K.Model):
         # transformer blocks
         self.blocks = [Block(config) for _ in range(config.n_layer)]
         # decoder head
-        self.ln_f = layers.LayerNormalization(axis=-1)
+        self.ln_f = layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias
         self.head = layers.Dense(
             units=config.vocab_size, use_bias=False,
             kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),

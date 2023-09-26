@@ -17,13 +17,34 @@ class GPTConfig:
     layer_norm_epsilon: float = 1e-05
 
     # Train configs
+    n_epoch: int = 2
+    batch_size: int = 32    
+
+    lr: float = 6e-4
+    do_lr_decay: bool = True # whether to decay the learning rate
+    warmup_ratio: float = 0.1
+    min_lr: float = 6e-5
+    weight_decay: float = 1e-1 # TODO: not all weights should
+    beta1: float = 0.9
+    beta2: float = 0.999
+    grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+    
+    verbose: int = 1 # 10
+    out_dir: str = "out"
+    out_name: str = "final_model"
+    backend: str = os.environ["KERAS_BACKEND"]
+    fixed_seed: bool = False
     do_eval: bool = True
     do_save_model: bool = True
 
+    do_wandb_log: bool = True
+    wandb_project: str = "nanogpt"
+    wandb_run_name: str = "test"
+
     # Data configs
-    dataset_name = "shakespeare"
-    shift = 1
-    data_dir = "../data"
+    dataset_name: str = "shakespeare"
+    shift: int = 1
+    data_dir: str = "../data"
 
     def __post_init__(self):
         if self.backend == "torch":
@@ -34,3 +55,4 @@ class GPTConfig:
             self.token_dtype = np.uint16
             self.train_path = os.path.join(self.data_dir, self.dataset_name, "train.bin")
             self.val_path = os.path.join(self.data_dir, self.dataset_name, "val.bin")
+        
