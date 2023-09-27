@@ -37,7 +37,7 @@ class GPTConfig:
     do_eval: bool = True
     do_save_model: bool = True
 
-    do_wandb_log: bool = True
+    do_wandb: bool = True
     wandb_project: str = "nanogpt"
     wandb_run_name: str = "test"
 

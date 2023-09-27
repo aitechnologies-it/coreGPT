@@ -24,7 +24,7 @@ def train(**kwargs):
         tf.config.experimental.enable_op_determinism()
 
     # --- WANDB ---
-    if config.do_wandb_log:
+    if config.do_wandb:
         import wandb
         wandb.init(project=config.wandb_project, name=config.wandb_run_name, config=config)
 
@@ -70,7 +70,7 @@ def train(**kwargs):
         model.summary()
 
     my_callbacks = []
-    if config.do_wandb_log:
+    if config.do_wandb:
         my_callbacks.append(
             callbacks.LambdaCallback(on_batch_end=lambda batch, logs: wandb_log(wandb, optimizer, batch, logs))
         )
