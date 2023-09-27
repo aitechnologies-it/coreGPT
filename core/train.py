@@ -1,57 +1,16 @@
 import os
 
 import fire
-import numpy as np
 os.environ["KERAS_BACKEND"] = "jax"
 import keras_core as K
 from keras_core import losses
 from keras_core import metrics
 from keras_core import optimizers
 from keras_core import callbacks
-import tensorflow as tf
 
 from config import GPTConfig
 from model import GPT
-
-
-def load_data(config):
-    B, T, shift = config.batch_size, config.block_size, config.shift
-
-    def get_tf_dataset(path):
-        data = np.memmap(path, dtype=config.token_dtype, mode='r')
-        # First block is of size (T+1), considering +1 for the target y.
-        # Plus all the shifted blocks, for which we count how many batches remaining (B-1), times the shift size
-        n_step = len(data) // (T+1 + (B-1)*shift)
-
-        x = (
-            tf.data.Dataset.from_tensor_slices(data[:-1])
-            .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
-            .flat_map(lambda x: x.batch(config.block_size))
-        )
-        y = (
-            tf.data.Dataset.from_tensor_slices(data[1:])
-            .window(config.block_size, shift=config.shift, stride=1, drop_remainder=True)
-            .flat_map(lambda x: x.batch(config.block_size))
-        )
-        dataset = (
-            tf.data.Dataset
-            .zip((x, y))
-            .batch(batch_size=config.batch_size,
-                drop_remainder=True,
-                num_parallel_calls=tf.data.AUTOTUNE)
-            .repeat()
-            .prefetch(buffer_size=tf.data.AUTOTUNE)
-        )
-
-        return dataset, n_step
-
-    train_dataset, n_step_train = get_tf_dataset(config.train_path)
-    if config.do_eval:
-        val_dataset, n_step_val = get_tf_dataset(config.val_path)
-    else:
-        val_dataset, n_step_val = None, None
-
-    return train_dataset, val_dataset, n_step_train, n_step_val
+from dataset import load_data
 
 
 def wandb_log(wandb, optimizer, batch, logs):
@@ -68,6 +27,7 @@ def train(**kwargs):
 
     K.mixed_precision.set_global_policy("mixed_bfloat16")
     if config.fixed_seed:
+        import tensorflow as tf
         K.utils.set_random_seed(1337)
         tf.config.experimental.enable_op_determinism()
 
