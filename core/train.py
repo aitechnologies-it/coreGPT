@@ -13,14 +13,6 @@ from model import GPT
 from dataset import load_data
 
 
-def wandb_log(wandb, optimizer, batch, logs):
-    try: # not working for jax
-        logs['lr'] = optimizer.learning_rate
-    except:
-        logs['lr'] = 0.0
-    wandb.log(logs)
-
-
 def train(**kwargs):
     # --- CONFIG ---
     config = GPTConfig(**kwargs)
@@ -108,6 +100,14 @@ def train(**kwargs):
         model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
 
     return model, history, config
+
+
+def wandb_log(wandb, optimizer, batch, logs):
+    try: # not working for jax
+        logs['lr'] = optimizer.learning_rate
+    except:
+        logs['lr'] = 0.0
+    wandb.log(logs)
 
 
 def main(**kwargs):  # Fire function cannot return anything.
