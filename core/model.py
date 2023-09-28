@@ -150,6 +150,9 @@ class Block(layers.Layer):
             layers.Dropout(config.dropout)
         ])
 
+    def build(self, input_shape):
+        super().build(input_shape)
+
     def call(self, x, training=None):
         x = x + self.attn(self.ln1(x), training=training)
         x = x + self.mlp(self.ln2(x), training=training)
@@ -167,31 +170,31 @@ class GPT(K.Model):
             embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
             name="embedding",
         )
-        self.pos_emb = K.layers.Embedding(
-            input_dim=config.block_size, output_dim=config.hidden_size,
-            embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
-            name="positional",
-        )
         self.drop = layers.Dropout(config.dropout)
         # transformer blocks
-        self.blocks = [Block(config) for _ in range(config.n_layer)]
+        self.blocks = K.Sequential(
+            [Block(config) for _ in range(config.n_layer)]
+        )
         # decoder head
         self.ln_f = layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias
         self.head = EmbeddingDecoder(tied_to=self.tok_emb, units=config.vocab_size, use_bias=config.bias)
 
     def build(self, input_shape):
-        super().build(input_shape)
+        self.pos_emb = self.add_weight(
+            shape=(1, self.config.block_size, self.config.hidden_size),
+            initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+            trainable=True,
+            name="positional"
+        )
 
     def call(self, inputs, training=None):
         B, T = inputs.shape
         # embed sentence
         wte = self.tok_emb(inputs)
-        # wpe = self.pos_emb[:, :T, :]
-        wpe = self.pos_emb(K.ops.arange(0, T))
+        wpe = self.pos_emb[:, :T, :]
         x = self.drop(wte + wpe, training=training)
         # attention
-        for block in self.blocks:
-            x = block(x, training=training)
+        x = self.blocks(x)
         # compute logits
         x = self.ln_f(x)
         x = self.head(x)
