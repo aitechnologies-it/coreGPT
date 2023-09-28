@@ -181,6 +181,6 @@ class GPT(K.Model):
         return x
     
     def summary(self):
-        x = K.Input(shape=[self.config.block_size], batch_size=self.config.batch_size, dtype=self.token_dtype)
+        x = K.Input(shape=[self.config.block_size], batch_size=self.config.batch_size, dtype=self.config.token_dtype_k)
         dummy = K.Model(inputs=x, outputs=self.call(x), name=self.name)
         return dummy.summary()

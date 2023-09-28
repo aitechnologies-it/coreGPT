@@ -14,7 +14,7 @@ def _load_data_tf(config):
     import tensorflow as tf
 
     def get_dataset(path, training):
-        data = np.memmap(path, dtype=config.token_dtype, mode='r')
+        data = np.memmap(path, dtype=config.token_dtype_np, mode='r')
         n_step = _compute_n_step(data, config)
 
         x = (
@@ -58,7 +58,7 @@ def _load_data_pt(config):
     class MyIterableDataset(torch.utils.data.IterableDataset):
         def __init__(self, path, config):
             super().__init__()
-            self.data = np.memmap(path, dtype=config.token_dtype, mode='r')
+            self.data = np.memmap(path, dtype=config.token_dtype_np, mode='r')
             self.config = config
             self.n_step = _compute_n_step(self.data, config)
 

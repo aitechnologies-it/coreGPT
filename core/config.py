@@ -55,11 +55,13 @@ class GPTConfig:
 
     def __post_init__(self):
         if self.backend == "torch":
-            self.token_dtype = np.int32 # torch doesn't support uint16 and the data max_vocab_id doesn't fit in int16
+            self.token_dtype_np = np.int32 # torch doesn't support uint16 and the data max_vocab_id doesn't fit in int16
+            self.token_dtype_k = "int32"
             self.train_path = os.path.join(self.data_dir, self.dataset_name, "train_int32.bin")
             self.val_path = os.path.join(self.data_dir, self.dataset_name, "val_int32.bin")
         else:
-            self.token_dtype = np.uint16
+            self.token_dtype_np = np.uint16
+            self.token_dtype_k = "uint16"
             self.train_path = os.path.join(self.data_dir, self.dataset_name, "train.bin")
             self.val_path = os.path.join(self.data_dir, self.dataset_name, "val.bin")
         
