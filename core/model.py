@@ -107,11 +107,11 @@ class CausalSelfAttention(K.layers.Layer):
         attended = self.attn(inputs)
         splitted = K.ops.split(attended, 3, axis=2)
         q, k, v = splitted[0], splitted[1], splitted[2]
-        q = K.ops.reshape(q, (B, T, self.config.n_head, C // self.config.n_head))
+        q = K.ops.reshape(q, (B, -1, self.config.n_head, C // self.config.n_head))
         q = K.ops.transpose(q, (0, 2, 1, 3))
-        k = K.ops.reshape(k, (B, T, self.config.n_head, C // self.config.n_head))
+        k = K.ops.reshape(k, (B, -1, self.config.n_head, C // self.config.n_head))
         k = K.ops.transpose(k, (0, 2, 1, 3))
-        v = K.ops.reshape(v, (B, T, self.config.n_head, C // self.config.n_head))
+        v = K.ops.reshape(v, (B, -1, self.config.n_head, C // self.config.n_head))
         v = K.ops.transpose(v, (0, 2, 1, 3))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
@@ -121,7 +121,7 @@ class CausalSelfAttention(K.layers.Layer):
         att = self.attn_drop(att, training=training)
         y = K.ops.matmul(att, v) # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
-        y = K.ops.reshape(y, (B, T, C)) # re-assemble all head outputs side by side
+        y = K.ops.reshape(y, (B, -1, C)) # re-assemble all head outputs side by side
 
         # output projection
         y = self.resid_drop(self.proj(y), training=training)
