@@ -1,21 +1,20 @@
 import os
 
 import fire
-os.environ["KERAS_BACKEND"] = "jax"
-import keras_core as K
-from keras_core import losses
-from keras_core import metrics
-from keras_core import optimizers
-from keras_core import callbacks
 
 from config import GPTConfig
-from model import GPT
 from dataset import load_data
 
 
 def train(**kwargs):
     # --- CONFIG ---
     config = GPTConfig(**kwargs)
+
+    # Imports here to allow command args to set the backend
+    os.environ["KERAS_BACKEND"] = config.backend
+    import keras_core as K
+    from model import GPT
+    from callback import AddLRCallback, EvaluateCallback, WandbCallback
 
     K.mixed_precision.set_global_policy("mixed_bfloat16")
     if config.fixed_seed:
@@ -43,7 +42,7 @@ def train(**kwargs):
 
     if config.do_lr_decay:
         init_lr = config.lr / warmup_steps
-        learning_rate = optimizers.schedules.CosineDecay(
+        learning_rate = K.optimizers.schedules.CosineDecay(
             initial_learning_rate=init_lr,
             warmup_target=config.lr,
             warmup_steps=warmup_steps,
@@ -53,17 +52,17 @@ def train(**kwargs):
     else:
         learning_rate = config.lr
 
-    optimizer = optimizers.AdamW(learning_rate=learning_rate,
-                                 weight_decay=config.weight_decay,
-                                 beta_1=config.beta1,
-                                 beta_2=config.beta2,
-                                 global_clipnorm=config.grad_clip)
+    optimizer = K.optimizers.AdamW(learning_rate=learning_rate,
+                                   weight_decay=config.weight_decay,
+                                   beta_1=config.beta1,
+                                   beta_2=config.beta2,
+                                   global_clipnorm=config.grad_clip)
 
     model.build(input_shape=(config.batch_size, config.block_size))
     model.compile(
         optimizer=optimizer,
-        loss=losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[metrics.SparseCategoricalAccuracy(name='acc')],
+        loss=K.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=[K.metrics.SparseCategoricalAccuracy(name='acc')],
         jit_compile=True
     )
     if config.verbose > 10:
