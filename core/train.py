@@ -87,11 +87,6 @@ def train(**kwargs):
     if config.do_wandb:
         my_callbacks.append(WandbCallback(n_step_train))
 
-    # --- BUILD --- Only needed for torch
-    if config.backend == "torch":
-        inp = next(iter(train_dataset))[0]
-        _ = model(inp)
-
     # --- TRAIN ---
     history = model.fit(
         train_dataset,
