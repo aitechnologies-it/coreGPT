@@ -38,6 +38,9 @@ class GPTConfig:
     do_eval_every: int = 0 # Set 0 to disable. Warning: makes each training step 50/100% slower
     do_save_model: bool = True
 
+    do_mixed_precision: bool = True
+    mixed_precision_dtype: str = "bfloat16" # bfloat16, float16
+
     do_wandb: bool = True
     wandb_project: str = "nanogpt"
     wandb_run_name: str = "test"
