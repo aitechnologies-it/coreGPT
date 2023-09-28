@@ -113,9 +113,9 @@ class CausalSelfAttention(K.layers.Layer):
 class Block(layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
-        self.ln1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
-        self.ln2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
-        self.attn = CausalSelfAttention(config)
+        self.ln_1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
+        self.ln_2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
+        self.cs_attn = CausalSelfAttention(config)
         self.mlp = K.Sequential([
             layers.Dense(
                 units=4*config.hidden_size, use_bias=config.bias, activation="gelu",
@@ -128,14 +128,14 @@ class Block(layers.Layer):
                 bias_initializer=initializers.Zeros(),
             ),
             layers.Dropout(config.dropout)
-        ])
+        ], name="mlp")
 
     def build(self, input_shape):
         super().build(input_shape)
 
     def call(self, x, training=None):
-        x = x + self.attn(self.ln1(x), training=training)
-        x = x + self.mlp(self.ln2(x), training=training)
+        x = x + self.cs_attn(self.ln_1(x), training=training)
+        x = x + self.mlp(self.ln_2(x), training=training)
         return x
     
 
@@ -153,7 +153,8 @@ class GPT(K.Model):
         self.drop = layers.Dropout(config.dropout)
         # transformer blocks
         self.blocks = K.Sequential(
-            [Block(config) for _ in range(config.n_layer)]
+            [Block(config) for _ in range(config.n_layer)],
+            name="transformer_blocks",
         )
         # decoder head
         self.ln_f = layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias

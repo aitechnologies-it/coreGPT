@@ -49,9 +49,10 @@ class GPTConfig:
     dataset_name: str = "shakespeare"
     shift: int = 1
     data_dir: str = "../data"
-    dataset_framework: str = "tf.data" # torch, tf.data
+    dataset_framework: str = "tensorflow" # torch, tensorflow
     # data config specific tf.dataset
     buffer_size: int = 10000
+
 
     def __post_init__(self):
         if self.backend == "torch":
