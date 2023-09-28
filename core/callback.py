@@ -10,10 +10,7 @@ class AddLRCallback(K.callbacks.Callback):
         self.optimizer = optimizer
 
     def on_batch_end(self, batch, logs=None):
-        try:
-            logs['lr'] = self.optimizer.learning_rate
-        except: # not working for jax backend
-            logs['lr'] = 0.0
+        logs['lr'] = self.optimizer.learning_rate
 
 
 class EvaluateCallback(K.callbacks.Callback):

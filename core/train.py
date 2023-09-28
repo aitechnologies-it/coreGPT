@@ -68,7 +68,9 @@ def train(**kwargs):
     if config.verbose > 10:
         model.summary()
 
-    my_callbacks = [AddLRCallback(optimizer)]
+    my_callbacks = []
+    if config.backend != "jax":
+        my_callbacks.append(AddLRCallback(optimizer)) # Workaround. Always 0 for jax
     if config.do_eval_every > 0:
         my_callbacks.append(EvaluateCallback(config, val_dataset, n_step_val))
     if config.do_wandb:
