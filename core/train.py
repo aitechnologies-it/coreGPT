@@ -46,6 +46,9 @@ def train(**kwargs):
     decay_steps = total_steps - warmup_steps
     print(f"Epoch steps: {n_step_train}. Total steps: {n_step_train * config.n_epoch}. "
           f"Warmup steps: {warmup_steps}. Decay steps: {decay_steps}.")
+    tok_per_step = config.batch_size * config.block_size
+    print(f"Step tokens: {tok_per_step}. Epoch tokens: {tok_per_step * n_step_train}. "
+          f"Total tokens {tok_per_step * total_steps}")
 
     if config.do_lr_decay:
         init_lr = config.lr / warmup_steps
