@@ -16,7 +16,12 @@ def train(**kwargs):
     from model import GPT
     from callback import AddLRCallback, EvaluateCallback, WandbCallback
 
-    K.mixed_precision.set_global_policy("mixed_bfloat16")
+    if config.do_mixed_precision:
+        dtype_to_mixed = {
+            "float16": "mixed_float16",
+            "bfloat16": "mixed_bfloat16",
+        }
+        K.mixed_precision.set_global_policy(dtype_to_mixed[config.mixed_precision_dtype])
     if config.fixed_seed:
         import tensorflow as tf
         K.utils.set_random_seed(1337)
