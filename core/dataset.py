@@ -3,8 +3,10 @@ import numpy as np
 
 def load_data(config):
     if config.dataset_framework == "torch":
+        print("Using Torch Dataloader.")
         return _load_data_pt(config)
     else:
+        print("Using tf.data Dataset.")
         return _load_data_tf(config)
 
 
@@ -42,7 +44,7 @@ def _load_data_tf(config):
         return dataset, n_step
 
     train_dataset, n_step_train = get_dataset(config.train_path, training=True)
-    if config.do_eval:
+    if config.do_eval_epoch or config.do_eval_every:
         val_dataset, n_step_val = get_dataset(config.val_path, training=False)
     else:
         val_dataset, n_step_val = None, None
@@ -81,7 +83,7 @@ def _load_data_pt(config):
         return dataloader, dataset.n_step
 
     train_dataset, n_step_train = get_dataset(config.train_path, config.dataset_framework)
-    if config.do_eval:
+    if config.do_eval_epoch or config.do_eval_every:
         val_dataset, n_step_val = get_dataset(config.val_path, config.dataset_framework)
     else:
         val_dataset, n_step_val = None, None

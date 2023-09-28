@@ -69,11 +69,11 @@ def train(**kwargs):
     if config.verbose > 10:
         model.summary()
 
-    my_callbacks = []
+    my_callbacks = [AddLRCallback(optimizer)]
+    if config.do_eval_every > 0:
+        my_callbacks.append(EvaluateCallback(config, val_dataset, n_step_val))
     if config.do_wandb:
-        my_callbacks.append(
-            callbacks.LambdaCallback(on_batch_end=lambda batch, logs: wandb_log(wandb, optimizer, batch, logs))
-        )
+        my_callbacks.append(WandbCallback())
 
     # --- BUILD --- Only needed for torch
     if config.backend == "torch":
@@ -85,8 +85,8 @@ def train(**kwargs):
         train_dataset,
         steps_per_epoch=n_step_train,
         epochs=config.n_epoch,
-        validation_data=val_dataset,
-        validation_steps=n_step_val,
+        validation_data=val_dataset if config.do_eval_epoch else None,
+        validation_steps=n_step_val if config.do_eval_epoch else None,
         callbacks=[my_callbacks],
         verbose=1
     )
@@ -100,14 +100,6 @@ def train(**kwargs):
         model.save(os.path.join(config.out_dir, f"{config.out_name}.keras"))
 
     return model, history, config
-
-
-def wandb_log(wandb, optimizer, batch, logs):
-    try: # not working for jax
-        logs['lr'] = optimizer.learning_rate
-    except:
-        logs['lr'] = 0.0
-    wandb.log(logs)
 
 
 def main(**kwargs):  # Fire function cannot return anything.
