@@ -35,11 +35,12 @@ class EvaluateCallback(K.callbacks.Callback):
 
 
 class WandbCallback(K.callbacks.Callback):
-    def __init__(self):
-        self.epoch = 1
+    def __init__(self, n_step_epoch):
+        self.offset = 0
+        self.n_step_epoch = n_step_epoch
 
     def on_batch_end(self, batch, logs=None):
-        wandb.log(logs, step=self.epoch*batch)
+        wandb.log(logs, step=self.offset + batch)
 
     def on_epoch_end(self, epoch, logs=None):
-        self.epoch += 1
+        self.offset += self.n_step_epoch
