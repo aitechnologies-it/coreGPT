@@ -82,9 +82,9 @@ def _load_data_pt(config):
 
         return dataloader, dataset.n_step
 
-    train_dataset, n_step_train = get_dataset(config.train_path, config.dataset_framework)
+    train_dataset, n_step_train = get_dataset(config.train_path)
     if config.do_eval_epoch or config.do_eval_every:
-        val_dataset, n_step_val = get_dataset(config.val_path, config.dataset_framework)
+        val_dataset, n_step_val = get_dataset(config.val_path)
     else:
         val_dataset, n_step_val = None, None
 
