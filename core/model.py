@@ -184,3 +184,17 @@ class GPT(K.Model):
         x = K.Input(shape=[self.config.block_size], batch_size=self.config.batch_size, dtype=self.config.token_dtype_k)
         dummy = K.Model(inputs=x, outputs=self.call(x), name=self.name)
         return dummy.summary()
+    
+    def get_list_exclude_from_weight_decay(self):
+        to_exclude = [self.ln_f]
+        for block in self.blocks.layers:
+            to_exclude.append(block.ln_1)
+            to_exclude.append(block.ln_2)
+            for dense in block.mlp.layers:
+                if hasattr(dense, "bias"):
+                    to_exclude.append(dense.bias)
+            if hasattr(block.cs_attn.attn, "bias"):
+                to_exclude.append(block.cs_attn.attn.bias)
+            if hasattr(block.cs_attn.proj, "bias"):
+                to_exclude.append(block.cs_attn.proj.bias)
+

@@ -62,6 +62,7 @@ def train(**kwargs):
                                    beta_1=config.beta1,
                                    beta_2=config.beta2,
                                    global_clipnorm=config.grad_clip)
+    optimizer.exclude_from_weight_decay(model.get_list_exclude_from_weight_decay())
 
     model.build(input_shape=(config.batch_size, config.block_size))
     model.compile(
