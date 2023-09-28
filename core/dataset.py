@@ -3,10 +3,10 @@ import numpy as np
 
 def load_data(config):
     if config.dataset_framework == "torch":
-        print("Using Torch Dataloader.")
+        print("Using PyTorch Dataloader.")
         return _load_data_pt(config)
     else:
-        print("Using tf.data Dataset.")
+        print("Using Tensorflow Dataset.")
         return _load_data_tf(config)
 
 
