@@ -32,7 +32,7 @@ class GPTConfig:
     verbose: int = 1 # 10
     out_dir: str = "out"
     out_name: str = "final_model"
-    backend: str = os.environ["KERAS_BACKEND"]
+    backend: str = "jax"
     fixed_seed: bool = False
     do_eval_epoch: bool = True # Regular keras fit() eval (every epoch)
     do_eval_every: int = 0 # Set 0 to disable. Warning: makes each training step 50/100% slower
