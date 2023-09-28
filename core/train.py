@@ -74,7 +74,7 @@ def train(**kwargs):
     if config.do_eval_every > 0:
         my_callbacks.append(EvaluateCallback(config, val_dataset, n_step_val))
     if config.do_wandb:
-        my_callbacks.append(WandbCallback())
+        my_callbacks.append(WandbCallback(n_step_train))
 
     # --- BUILD --- Only needed for torch
     if config.backend == "torch":
