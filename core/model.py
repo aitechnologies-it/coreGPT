@@ -34,9 +34,6 @@ class EmbeddingDecoder(layers.Layer):
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.bias_constraint = constraints.get(bias_constraint)
 
-        self.input_spec = K.InputSpec(min_ndim=2)
-        self.supports_masking = True
-
     def build(self, input_shape):
         B, T, H = input_shape
         V = self.units
@@ -48,9 +45,6 @@ class EmbeddingDecoder(layers.Layer):
                 regularizer=self.bias_regularizer,
             )
 
-        self.input_spec = K.InputSpec(min_ndim=2, axes={-1: H})
-        self.built = True
-
     def call(self, inputs):
         w = self.tied_to.embeddings
         kernel = K.ops.transpose(w)
@@ -60,20 +54,6 @@ class EmbeddingDecoder(layers.Layer):
         if self.activation:
             x = self.activation(x)
         return x
-
-    def compute_output_shape(self, input_shape):
-        output_shape = list(input_shape)
-        output_shape[-1] = self.units
-        return tuple(output_shape)
-
-    def get_config(self):
-        base_config = super().get_config()
-        config = {
-            "units": self.units,
-            "activation": activations.serialize(self.activation),
-            "use_bias": self.use_bias,
-        }
-        return {**base_config, **config}
 
 
 class CausalSelfAttention(K.layers.Layer):
