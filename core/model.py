@@ -70,9 +70,6 @@ class CausalSelfAttention(K.layers.Layer):
             kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02 / math.sqrt(2 * config.n_layer)),
             bias_initializer=K.initializers.Zeros(),
         )
-
-        self.mask = K.ops.tril(K.ops.ones(shape=(1, config.block_size, config.block_size)))
-
         self.config = config
 
     def call(self, inputs, training=None):
