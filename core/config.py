@@ -15,6 +15,7 @@ class GPTConfig:
     dropout: float = 0.0
     bias: bool = True # True: bias in Linears and LayerNorms, like GPT-2. False: a bit better and faster
     layer_norm_epsilon: float = 1e-05
+    do_flash_attention: bool = True # Only PyTorch. Warning: cannot load same model with different backend anymore
 
     # Train configs
     n_epoch: int = 2

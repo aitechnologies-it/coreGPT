@@ -55,6 +55,7 @@ class CausalSelfAttention(K.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         assert config.hidden_size % config.n_head == 0
+        self.config = config
         # key, query, value projections for all heads, but in a batch
         self.attn = K.layers.Dense(
             units=config.hidden_size * 3, use_bias=config.bias,
@@ -62,7 +63,6 @@ class CausalSelfAttention(K.layers.Layer):
             bias_initializer=K.initializers.Zeros(),
         )
         # regularization
-        self.attn_drop = K.layers.Dropout(config.dropout)
         self.resid_drop = K.layers.Dropout(config.dropout)
         # output projection (special scaled init to the residual projections, per GPT-2 paper)
         self.proj = K.layers.Dense(
@@ -70,7 +70,13 @@ class CausalSelfAttention(K.layers.Layer):
             kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02 / math.sqrt(2 * config.n_layer)),
             bias_initializer=K.initializers.Zeros(),
         )
-        self.config = config
+        # Enable flash attention if backend is torch
+        if config.do_flash_attention and config.backend == "torch":
+            import torch
+            self.flash = getattr(torch.nn.functional, 'scaled_dot_product_attention', None)
+        else:
+            self.flash = None
+            self.attn_drop = K.layers.Dropout(config.dropout)
 
     def call(self, inputs, training=None):
         B, T, C = inputs.shape # batch_size, block_size, hidden_size
@@ -87,17 +93,25 @@ class CausalSelfAttention(K.layers.Layer):
         v = K.ops.transpose(v, (0, 2, 1, 3))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        if self.flash: # pytorch
+            y = self.flash(q, k, v, attn_mask=None, is_causal=True,
+                           dropout_p=self.config.dropout if self.training else 0)
+        else:
+            y = self.attention(q, k, v, training)
+        y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
+        y = K.ops.reshape(y, (B, -1, C)) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_drop(self.proj(y), training=training)
+        return y
+
+    def attention(self, q, k, v, training):
         att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2)))
         att = att * K.ops.rsqrt(K.ops.cast(k.shape[-1], att.dtype)) # (B, nh, T, T)
         att = self.causal_masking(att)
         att = K.ops.softmax(att, axis=-1)
         att = self.attn_drop(att, training=training)
         y = K.ops.matmul(att, v) # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
-        y = K.ops.reshape(y, (B, -1, C)) # re-assemble all head outputs side by side
-
-        # output projection
-        y = self.resid_drop(self.proj(y), training=training)
         return y
 
     def causal_masking(self, scores):
