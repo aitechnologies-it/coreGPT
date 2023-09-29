@@ -93,10 +93,8 @@ class CausalSelfAttention(K.layers.Layer):
         # (1.0 / math.sqrt(k.shape[-1]))
         att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2)))
         att = att * K.ops.rsqrt(K.ops.cast(k.shape[-1], att.dtype)) # (B, nh, T, T)
-        att = K.ops.where(K.ops.equal(att, 0),
-                          K.ops.cast(-np.inf, att.dtype),
-                          att)
-        att = K.activations.softmax(att, axis=-1)
+        att = self.causal_masking(att)
+        att = K.ops.softmax(att, axis=-1)
         att = self.attn_drop(att, training=training)
         y = K.ops.matmul(att, v) # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
@@ -105,6 +103,18 @@ class CausalSelfAttention(K.layers.Layer):
         # output projection
         y = self.resid_drop(self.proj(y), training=training)
         return y
+
+    def causal_masking(self, scores):
+        _, _, Tdest, Tsrc = K.ops.shape(scores) # Tdest == Tsrc
+        # Creates a lower triangular mask, so position i cannot attend to positions j>i.
+        # This prevents the flow of information from the future into the past.
+        mask = K.ops.tril(K.ops.ones(shape=(1, 1, Tdest, Tsrc), dtype="int32"), k=0)
+        # padding positions should not contribute to attention distribution
+        padding_mask = K.ops.logical_not(mask)
+        # else: assume bfloat16 or float32, which have the same range
+        max_value = 65504.0 if scores.dtype == "float16" else 3.38e38
+        inf_mask = K.ops.cast(max_value, scores.dtype) * K.ops.cast(padding_mask, dtype=scores.dtype)
+        return scores - inf_mask
 
 
 class Block(K.layers.Layer):
