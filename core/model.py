@@ -90,7 +90,6 @@ class CausalSelfAttention(K.layers.Layer):
         v = K.ops.transpose(v, (0, 2, 1, 3))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        # (1.0 / math.sqrt(k.shape[-1]))
         att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2)))
         att = att * K.ops.rsqrt(K.ops.cast(k.shape[-1], att.dtype)) # (B, nh, T, T)
         att = self.causal_masking(att)
@@ -206,3 +205,35 @@ class GPT(K.Model):
             if hasattr(block.cs_attn.proj, "bias"):
                 to_exclude.append(block.cs_attn.proj.bias)
 
+
+    def generate(self, input_ids, max_length, temperature=1.0, sample=False, top_k=None):
+        if not isinstance(input_ids, np.ndarra):
+            raise ValueError(f'Input input_ids should be np.ndarray, found {type(input_ids)}')
+        if input_ids.ndim < 1 or input_ids.ndim > 2:
+            raise ValueError(f'Input input_ids should have 1 or 2 dims, found {input_ids.ndim} dimensions.')
+            
+        if input_ids.ndim == 2 and input_ids.shape[0] > 1:
+            raise ValueError('Input input_ids should only contain one sequence, ie. should have batch of size 1.')
+        if input_ids.ndim == 1:
+            input_ids = K.ops.expand_dims(input_ids, axis=0)
+
+        for _ in range(max_length):
+            _, T = input_ids.shape # sequence length
+            if T >= self.config.block_size: # crop context if needed
+                input_ids = input_ids[:, :T]
+            logits = self(input_ids, training=False)
+            logits = K.ops.divide(logits[:, -1, :], temperature)
+            if top_k is not None:
+                # optionally crop probabilities to only the top k options
+                v, _ = K.ops.top_k(logits, top_k, sorted=True)
+                logits = K.ops.identity(logits).numpy()
+                logits[logits < v.numpy()[:, [-1]]] = -float('Inf')
+            probabilities = K.activations.softmax(logits, axis=-1)
+            if sample:
+                chunk_id = K.random.categorical(K.ops.log(probabilities), num_samples=1)
+            else:
+                _, chunk_id = K.ops.top_k(probabilities, k=1)
+            input_ids = K.ops.concatenate([
+                input_ids, K.ops.reshape(K.ops.cast(chunk_id, dtype=input_ids.dtype), new_shape=(1, 1))], axis=-1
+            )
+        return input_ids
