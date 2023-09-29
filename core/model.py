@@ -95,9 +95,11 @@ class CausalSelfAttention(K.layers.Layer):
         v = K.ops.transpose(v, (0, 2, 1, 3))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2))) * (1.0 / math.sqrt(k.shape[-1])) # (B, nh, T, T)
+        # (1.0 / math.sqrt(k.shape[-1]))
+        att = K.ops.matmul(q, K.ops.transpose(k, (0, 1, 3, 2)))
+        att = att * K.ops.rsqrt(K.ops.cast(k.shape[-1], att.dtype)) # (B, nh, T, T)
         att = K.ops.where(K.ops.equal(att, 0),
-                          K.ops.cast(-np.inf, self.config.mixed_precision_dtype),
+                          K.ops.cast(-np.inf, att.dtype),
                           att)
         att = activations.softmax(att, axis=-1)
         att = self.attn_drop(att, training=training)
