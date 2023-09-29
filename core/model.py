@@ -1,17 +1,12 @@
 import math
+
 import numpy as np
 import keras_core as K
-from keras_core import ops
-from keras_core import layers
-from keras_core import initializers
-from keras_core import activations
-from keras_core import regularizers
-from keras_core import constraints
 
 from config import GPTConfig
 
 
-class EmbeddingDecoder(layers.Layer):
+class EmbeddingDecoder(K.layers.Layer):
     """Reimplementation of K.layers.Dense layer, but with tied_weights from the 
     work token embedding layer."""
     def __init__(
@@ -28,11 +23,11 @@ class EmbeddingDecoder(layers.Layer):
         super().__init__(**kwargs)
         self.tied_to = tied_to
         self.units = units
-        self.activation = activations.get(activation)
+        self.activation = K.activations.get(activation)
         self.use_bias = use_bias
-        self.bias_initializer = initializers.get(bias_initializer)
-        self.bias_regularizer = regularizers.get(bias_regularizer)
-        self.bias_constraint = constraints.get(bias_constraint)
+        self.bias_initializer = K.initializers.get(bias_initializer)
+        self.bias_regularizer = K.regularizers.get(bias_regularizer)
+        self.bias_constraint = K.constraints.get(bias_constraint)
 
     def build(self, input_shape):
         B, T, H = input_shape
@@ -48,7 +43,7 @@ class EmbeddingDecoder(layers.Layer):
     def call(self, inputs):
         w = self.tied_to.embeddings
         kernel = K.ops.transpose(w)
-        x = ops.matmul(inputs, kernel)
+        x = K.ops.matmul(inputs, kernel)
         if self.use_bias:
             x = x + self.bias
         if self.activation:
@@ -61,19 +56,19 @@ class CausalSelfAttention(K.layers.Layer):
         super().__init__(**kwargs)
         assert config.hidden_size % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
-        self.attn = layers.Dense(
+        self.attn = K.layers.Dense(
             units=config.hidden_size * 3, use_bias=config.bias,
-            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
-            bias_initializer=initializers.Zeros(),
+            kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+            bias_initializer=K.initializers.Zeros(),
         )
         # regularization
-        self.attn_drop = layers.Dropout(config.dropout)
-        self.resid_drop = layers.Dropout(config.dropout)
+        self.attn_drop = K.layers.Dropout(config.dropout)
+        self.resid_drop = K.layers.Dropout(config.dropout)
         # output projection (special scaled init to the residual projections, per GPT-2 paper)
         self.proj = K.layers.Dense(
             units=config.hidden_size, use_bias=config.bias,
-            kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02 / math.sqrt(2 * config.n_layer)),
-            bias_initializer=initializers.Zeros(),
+            kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02 / math.sqrt(2 * config.n_layer)),
+            bias_initializer=K.initializers.Zeros(),
         )
 
         self.mask = K.ops.tril(K.ops.ones(shape=(1, config.block_size, config.block_size)))
@@ -101,7 +96,7 @@ class CausalSelfAttention(K.layers.Layer):
         att = K.ops.where(K.ops.equal(att, 0),
                           K.ops.cast(-np.inf, att.dtype),
                           att)
-        att = activations.softmax(att, axis=-1)
+        att = K.activations.softmax(att, axis=-1)
         att = self.attn_drop(att, training=training)
         y = K.ops.matmul(att, v) # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         y = K.ops.transpose(y, (0, 2, 1, 3)) # (B, nh, T, hs) -> (B, T, nh, hs)
@@ -112,24 +107,24 @@ class CausalSelfAttention(K.layers.Layer):
         return y
 
 
-class Block(layers.Layer):
+class Block(K.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
-        self.ln_1 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
-        self.ln_2 = layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
+        self.ln_1 = K.layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
+        self.ln_2 = K.layers.LayerNormalization(epsilon=config.layer_norm_epsilon)
         self.cs_attn = CausalSelfAttention(config)
         self.mlp = K.Sequential([
-            layers.Dense(
+            K.layers.Dense(
                 units=4*config.hidden_size, use_bias=config.bias, activation="gelu",
-                kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
-                bias_initializer=initializers.Zeros(),
+                kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+                bias_initializer=K.initializers.Zeros(),
             ),
-            layers.Dense(
+            K.layers.Dense(
                 units=config.hidden_size, use_bias=config.bias,
-                kernel_initializer=initializers.RandomNormal(mean=0.0, stddev=0.02),
-                bias_initializer=initializers.Zeros(),
+                kernel_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
+                bias_initializer=K.initializers.Zeros(),
             ),
-            layers.Dropout(config.dropout)
+            K.layers.Dropout(config.dropout)
         ], name="mlp")
 
     def build(self, input_shape):
@@ -152,14 +147,14 @@ class GPT(K.Model):
             embeddings_initializer=K.initializers.RandomNormal(mean=0.0, stddev=0.02),
             name="embedding",
         )
-        self.drop = layers.Dropout(config.dropout)
+        self.drop = K.layers.Dropout(config.dropout)
         # transformer blocks
         self.blocks = K.Sequential(
             [Block(config) for _ in range(config.n_layer)],
             name="transformer_blocks",
         )
         # decoder head
-        self.ln_f = layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias
+        self.ln_f = K.layers.LayerNormalization(epsilon=config.layer_norm_epsilon, axis=-1) # TODO bias
         self.head = EmbeddingDecoder(tied_to=self.tok_emb, units=config.vocab_size, use_bias=config.bias)
 
     def build(self, input_shape):
