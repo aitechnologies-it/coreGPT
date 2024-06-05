@@ -1,7 +1,7 @@
 
 # coreGPT
 
-A reimplementation of nanoGPT with KerasCore (now Keras 3)
+A reimplementation of nanoGPT with Keras 3 ('core' was the codename of Keras 3 during dev)
 
 ## How to run
 
