@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-import keras_core as K
+import keras as K
 
 from config import GPTConfig
 

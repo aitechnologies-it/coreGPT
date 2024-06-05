@@ -1,4 +1,4 @@
-import keras_core as K
+import keras as K
 try:
     import wandb
 except: # Don't crash if wandb is not available, not a problem as long as config.do_wandb is False

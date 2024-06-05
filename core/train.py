@@ -12,7 +12,7 @@ def train(**kwargs):
 
     # Imports here to allow command args to set the backend
     os.environ["KERAS_BACKEND"] = config.backend
-    import keras_core as K
+    import keras as K
     from model import GPT
     from callback import AddLRCallback, EvaluateCallback, WandbCallback
 
