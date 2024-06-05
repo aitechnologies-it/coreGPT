@@ -42,7 +42,7 @@ def train(**kwargs):
 
     # --- PREPARE TRAINING ---
     total_steps = n_step_train * config.n_epoch
-    warmup_steps = int(total_steps * config.warmup_ratio)
+    warmup_steps = max(int(total_steps * config.warmup_ratio), 1)
     decay_steps = total_steps - warmup_steps
     print(f"Epoch steps: {n_step_train}. Total steps: {n_step_train * config.n_epoch}. "
           f"Warmup steps: {warmup_steps}. Decay steps: {decay_steps}.")
