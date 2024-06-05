@@ -1,0 +1,7 @@
+jax[cpu]==0.4.28
+tensorflow==2.16.1
+matplotlib==3.9.0
+fire==0.6.0
+keras==3.3.3
+tiktoken==0.7.0
+wandb==0.17.0

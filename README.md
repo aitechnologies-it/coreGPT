@@ -1,5 +1,17 @@
 
-# nanoGPT
+# coreGPT
+
+A reimplementation of nanoGPT with KerasCore (now Keras 3)
+
+## How to run
+
+- prepare dataset by running one of `prepare.py` scripts (only /data/shakespeare is updated for now)
+- Complete configuration in `config.py`, or passed as argument to `train.py`
+- run `train.py`:
+
+        python train.py --backend=jax --dataset_framework==tensorflow
+
+# nanoGPT [original README]
 
 ![nanoGPT](assets/nanogpt.jpg)
 
