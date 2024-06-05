@@ -1,5 +1,9 @@
 
-# nanoGPT
+# coreGPT
+
+A reimplementation of nanoGPT with KerasCore (now Keras 3)
+
+# nanoGPT [original README]
 
 ![nanoGPT](assets/nanogpt.jpg)
 
