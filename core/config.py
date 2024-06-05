@@ -42,9 +42,9 @@ class GPTConfig:
     do_mixed_precision: bool = True
     mixed_precision_dtype: str = "bfloat16" # bfloat16, float16
 
-    do_wandb: bool = True
-    wandb_project: str = "nanogpt"
-    wandb_run_name: str = "test"
+    do_wandb: bool = False
+    wandb_project: str = "coregpt"
+    wandb_run_name: str = "test1"
 
     # Data configs
     dataset_name: str = "shakespeare"
